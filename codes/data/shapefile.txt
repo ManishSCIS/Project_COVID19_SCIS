@@ -1,1 +1,1 @@
-Shape files directory
+Shape and clean and tranformed data files directory

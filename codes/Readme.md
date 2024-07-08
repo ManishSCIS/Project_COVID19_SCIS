@@ -1,5 +1,6 @@
 # Code Directory
 This folder contains all the code files necessary to run the CoSymple application.
+#
 File Structure :
 ```bash
 ├── Codes

@@ -112,62 +112,170 @@ function(input, output)
     
     
     
-    plot_ly(x = as.Date(df2$Date), y = df2$Confirmed,width = 1000, type = 'scatter', mode = 'lines'
+    plot_ly(x = as.Date(df2$Date), y = df2$Confirmed, type = 'scatter', mode = 'lines'
             , name = 'Confirmed')%>%
       add_trace(x=as.Date(df2$Date), y = df2$Recovered,type = 'scatter', mode = 'lines',name='Recovered') %>%
       add_trace(x = as.Date(df2$Date), y = df2$Deceased, type = 'scatter', mode = 'lines', name = 'Deceased')%>%
       layout(title = 'Time Line (Mar-2020 to Oct-2021) State Vs India',
-             plot_bgcolor='#ffff',  
-             xaxis = list(  
+             plot_bgcolor='#ffff',
+             xaxis = list(
                #title = 'Time Line (Mar-2020 to Oct-2021)',
-               #zerolinecolor = 'white',  
-               zerolinewidth = 2,  
-               gridcolor = 'ffff'),  
-             yaxis = list(  
-               title = 'Case Counts',
-               #zerolinecolor = 'white',  
-               zerolinewidth = 2,  
+               #zerolinecolor = 'white',
+               zerolinewidth = 2,
                gridcolor = 'ffff'),
-             showlegend = TRUE 
-      )%>% 
-      layout(legend=list(x=0.1,y=1, orientation='h')) 
+             yaxis = list(
+               title = 'Case Counts',
+               #zerolinecolor = 'white',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'),
+             showlegend = TRUE
+      )%>%
+      layout(legend=list(x=0.1,y=1, orientation='h')) %>%
+      config(responsive=TRUE)
   })
   
-  ############################### GRNN Forecast Code ###########################
-  output$Plotfst1 <- renderPlotly({
-    pred <- grnn_forecasting(ts.data, h = input$obs)
-    autoplot(pred)
+  ############################### Unified Forecast Model ########################
+  forecast_result <- reactive({
+    h     <- input$obs
+    model <- input$model_select
+    if (model == "GRNN") {
+      grnn_forecasting(ts.data, h = h)
+    } else if (model == "ARIMA") {
+      forecast(auto.arima(ts.data), h = h)
+    } else {
+      forecast(ets(ts.data), h = h)
+    }
   })
-  
-  output$Plotfst2 <- renderPlotly({
-    pred <- grnn_forecasting(ts.data, h = input$obs)
-    autoplot(pred$prediction, col='red', lwd=1.5, xlab='Day (Time)', ylab='No. of Cases')
+
+  output$PlotModel1 <- renderPlotly({
+    model  <- input$model_select
+    result <- forecast_result()
+    if (model == "GRNN") {
+      ggplotly(autoplot(result)) %>% config(responsive=TRUE)
+    } else {
+      ggplotly(autoplot(result) +
+                 xlab("Day (Time)") + ylab("No. of Cases")) %>%
+        config(responsive=TRUE)
+    }
   })
-  
+
+  output$PlotModel2 <- renderPlotly({
+    model  <- input$model_select
+    result <- forecast_result()
+    h      <- input$obs
+    if (model == "GRNN") {
+      ggplotly(autoplot(result$prediction, col='red', lwd=1.5,
+                        xlab='Day (Time)', ylab='No. of Cases')) %>%
+        config(responsive=TRUE)
+    } else {
+      n    <- length(ts.data)
+      days <- seq(n + 1, n + h)
+      plot_ly(x = days, y = as.numeric(result$mean),
+              type = 'scatter', mode = 'lines',
+              name = model, line = list(color = 'red', width = 1.5)) %>%
+        layout(xaxis = list(title = 'Day (Time)'),
+               yaxis = list(title = 'No. of Cases')) %>%
+        config(responsive=TRUE)
+    }
+  })
+
+  ############################### Accuracy Table ################################
+  output$accuracy_table <- renderDataTable({
+    h_test <- 30
+    n      <- length(ts.data)
+    train  <- head(ts.data, n - h_test)
+    test   <- as.numeric(tail(ts.data, h_test))
+
+    calc_metrics <- function(pred, actual) {
+      pred <- as.numeric(pred)
+      rmse <- round(sqrt(mean((pred - actual)^2)), 2)
+      mae  <- round(mean(abs(pred - actual)), 2)
+      mape <- round(mean(abs((pred - actual) / actual) * 100), 2)
+      c(RMSE = rmse, MAE = mae, MAPE = mape)
+    }
+
+    grnn_pred  <- grnn_forecasting(train, h = h_test)$prediction
+    arima_pred <- forecast(auto.arima(train), h = h_test)$mean
+    ets_pred   <- forecast(ets(train), h = h_test)$mean
+
+    grnn_m  <- calc_metrics(grnn_pred,  test)
+    arima_m <- calc_metrics(arima_pred, test)
+    ets_m   <- calc_metrics(ets_pred,   test)
+
+    data.frame(
+      Model = c("GRNN", "ARIMA", "ETS"),
+      RMSE  = c(grnn_m["RMSE"],  arima_m["RMSE"],  ets_m["RMSE"]),
+      MAE   = c(grnn_m["MAE"],   arima_m["MAE"],   ets_m["MAE"]),
+      MAPE  = paste0(c(grnn_m["MAPE"], arima_m["MAPE"], ets_m["MAPE"]), "%")
+    )
+  }, options = list(dom = 't', paging = FALSE, searching = FALSE))
+
+  ############################### Model Comparison #############################
+  output$PlotCompare <- renderPlotly({
+    h <- input$obs
+    n <- length(ts.data)
+    future_days <- seq(n + 1, n + h)
+
+    grnn_pred  <- as.numeric(grnn_forecasting(ts.data, h = h)$prediction)
+    arima_pred <- as.numeric(forecast(auto.arima(ts.data), h = h)$mean)
+    ets_pred   <- as.numeric(forecast(ets(ts.data), h = h)$mean)
+
+    plot_ly(x = future_days) %>%
+      add_lines(y = grnn_pred,  name = "GRNN",  line = list(color = 'blue',  width = 2)) %>%
+      add_lines(y = arima_pred, name = "ARIMA", line = list(color = 'red',   width = 2)) %>%
+      add_lines(y = ets_pred,   name = "ETS",   line = list(color = 'green', width = 2)) %>%
+      layout(
+        xaxis  = list(title = "Day (Time)"),
+        yaxis  = list(title = "Confirmed Cases"),
+        legend = list(orientation = 'h', x = 0, y = 1.1)
+      ) %>%
+      config(responsive=TRUE)
+  })
+
   ###################### State-wise *Scrolling* Data Table ###################
   output$raw1<-renderDataTable(rawdata1, options = list(scrollX=TRUE))
   
   
   ############################## Moran Index and Spatial Tabs ######################
-  
-  output$moran.conf.map<- renderLeaflet({
-    
-    tmap_leaflet(conf.map, mode = "view", in.shiny = FALSE)
-    
+  # Build tmap objects inside server() — same pattern as moranpage/app.R
+  conf.map <- tm_shape(s2) +
+    tm_fill(col="Confirmed", style="jenks", n=10, palette="Blues") +
+    tm_legend(outside=TRUE) +
+    tm_borders(lty="solid") +
+    tmap_options(check.and.fix=TRUE)
+
+  rec.map <- tm_shape(s2) +
+    tm_fill(col="Recovered", style="jenks", n=10, palette="Greens") +
+    tm_legend(outside=TRUE) +
+    tm_borders(lty="solid") +
+    tmap_options(check.and.fix=TRUE)
+
+  dec.map <- tm_shape(s2) +
+    tm_fill(col="Deaths", style="jenks", n=10, palette="Reds") +
+    tm_legend(outside=TRUE) +
+    tm_borders(lty="solid") +
+    tmap_options(check.and.fix=TRUE)
+
+  act.map <- tm_shape(s2) +
+    tm_fill(col="Active", style="jenks", n=10, palette="Oranges") +
+    tm_legend(outside=TRUE) +
+    tm_borders(lty="solid") +
+    tmap_options(check.and.fix=TRUE)
+
+  output$moran.conf.map <- renderLeaflet({
+    tmap_leaflet(conf.map, mode = "view", in.shiny = TRUE)
   })
-  
-  output$moran.rec.map<- renderLeaflet({
-  
-        tmap_leaflet(rec.map, mode = "view", in.shiny = FALSE)
+
+  output$moran.rec.map <- renderLeaflet({
+    tmap_leaflet(rec.map, mode = "view", in.shiny = TRUE)
   })
-  
-  output$moran.dec.map<- renderLeaflet({
-    
-    tmap_leaflet(dec.map, mode = "view", in.shiny = FALSE)
+
+  output$moran.dec.map <- renderLeaflet({
+    tmap_leaflet(dec.map, mode = "view", in.shiny = TRUE)
   })
-  output$moran.act.map<- renderLeaflet({
-    
-    tmap_leaflet(act.map, mode = "view", in.shiny = FALSE)
+
+  output$moran.act.map <- renderLeaflet({
+    tmap_leaflet(act.map, mode = "view", in.shiny = TRUE)
   })
   
   

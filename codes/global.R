@@ -61,7 +61,7 @@ ts.data<-ts(mydata$Confirmed)
 #s1<-st_read("C:/Users/Scisjnu/Documents/R_Project/data/data_moran.shp")
 s1<-st_read("data/data_moran.shp")
 
-s2<-st_read("data/custom_data.shp")
+s2 <- st_make_valid(st_read("data/custom_data.shp"))
 
 #s2<-st_read("C:/Users/Scisjnu/Documents/CoSymple_R/data/custom_data.shp")
 #s1<-st_read("C:/Users/Scisjnu/Documents/CoSymple_R/data_moran.shp")

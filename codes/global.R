@@ -61,7 +61,7 @@ ts.data<-ts(mydata$Confirmed)
 #s1<-st_read("C:/Users/Scisjnu/Documents/R_Project/data/data_moran.shp")
 s1<-st_read("data/data_moran.shp")
 
-#s2<-st_read("data/custom_data.shp")
+s2<-st_read("data/custom_data.shp")
 
 #s2<-st_read("C:/Users/Scisjnu/Documents/CoSymple_R/data/custom_data.shp")
 #s1<-st_read("C:/Users/Scisjnu/Documents/CoSymple_R/data_moran.shp")
@@ -116,14 +116,15 @@ topdf2<-dataset2 %>%
   dplyr::select(1,4:8)
 topdf2 <- topdf2[2:6,]
 
-bplot5<-plot_ly(topdf2, x=~State, y=~Active,width=500, type = 'bar',name = 'Active',color=I('orange'))%>%
+bplot5<-plot_ly(topdf2, x=~State, y=~Active, type = 'bar',name = 'Active',color=I('orange'))%>%
   add_trace(y=~Deaths, name='Deceased',color=I('red'))%>%
   add_trace(y=~Recovered, name='Recovered',color=I('green'))%>%
   add_trace(y=~Confirmed, name='Confirmed',color=I('blue'))%>%
   layout( #title="Top 5 State Statistics",
     xaxis = list(title = "States", color ="black", tickangle = 20),
     yaxis = list(title = 'Case Count'), barmode = 'group',
-    legend=list(x=0,y=1.2, orientation='h'))
+    legend=list(x=0,y=1.2, orientation='h')) %>%
+  config(responsive=TRUE)
 
 ################Bar Plot For All States\UTs
 #data = dataset2
@@ -131,51 +132,29 @@ bplot.all<-plot_ly(dataset2, x=~State_code, y=~Active, type = 'bar',name = 'Acti
   add_trace(y=~Deaths, name='Deceased',color=I('red'))%>%
   add_trace(y=~Recovered, name='Recovered',color=I('green'))%>%
   add_trace(y=~Confirmed, name='Confirmed',color=I('blue'))%>%
-  layout(#title="State-wise Bar Chart", 
+  layout(#title="State-wise Bar Chart",
     xaxis = list(title = "State-codes", color ="black", tickangle = 0),
     yaxis = list(title = 'Case Count'), barmode = 'group',
-    legend=list(x=0,y=1.2, orientation='h'))
+    legend=list(x=0,y=1.2, orientation='h')) %>%
+  config(responsive=TRUE)
 
 ###########################  India Trend Plot #######################
 df<- dataset1 %>% 
   filter(dataset1$State=='Total')
 
-p1<-plot_ly(x = as.Date(df$Date), y = df$Confirmed,width = 1000, type = 'scatter', mode = 'lines', name = 'Confirmed')%>%
+p1<-plot_ly(x = as.Date(df$Date), y = df$Confirmed, type = 'scatter', mode = 'lines', name = 'Confirmed')%>%
   add_trace(x=as.Date(df$Date), y = df$Recovered,type = 'scatter', mode = 'lines',name='Recovered') %>%
   add_trace(x = as.Date(df$Date), y = df$Deceased, type = 'scatter', mode = 'lines', name = 'Deceased')%>%
-  layout(#title = 'COVID-19 Cases India', 
-    plot_bgcolor='#ffff',  
-    xaxis = list( zerolinewidth = 2,gridcolor = 'ffff'),  
+  layout(#title = 'COVID-19 Cases India',
+    plot_bgcolor='#ffff',
+    xaxis = list( zerolinewidth = 2,gridcolor = 'ffff'),
     yaxis = list(title = 'Case Counts',zerolinewidth = 2,gridcolor = 'ffff'),
     showlegend = TRUE )%>%
-  layout(legend=list(x=0.1,y=1, orientation='h'))
+  layout(legend=list(x=0.1,y=1, orientation='h')) %>%
+  config(responsive=TRUE)
 
 ############################## Moran Spatial Plots###################
-################## Change in data from S1 to S2 #####################
-# conf.map<-tm_shape(s1)+
-#   tm_fill(col="Confirmed", style="jenks", n=10, palette = "Blues")+
-#   tm_legend(outside=TRUE)+
-#   tm_borders(lty ="solid")+
-#   tmap_options(check.and.fix = TRUE)
-# 
-# 
-# rec.map<-tm_shape(s1)+
-#   tm_fill(col="Recovered", style="jenks", n=10, palette = "Greens")+
-#   tm_legend(outside=TRUE)+
-#   tm_borders(lty ="solid")+
-#   tmap_options(check.and.fix = TRUE)
-# 
-# dec.map<-tm_shape(s1)+
-#   tm_fill(col="Deaths", style="jenks", n=10, palette = "Reds")+
-#   tm_legend(outside=TRUE)+
-#   tm_borders(lty ="solid")+
-#   tmap_options(check.and.fix = TRUE)
-# 
-# act.map<-tm_shape(s1)+
-#   tm_fill(col="Active", style="jenks", n=10, palette = "Oranges")+
-#   tm_legend(outside=TRUE)+
-#   tm_borders(lty ="solid")+
-#   tmap_options(check.and.fix = TRUE)
+# Choropleth tmap objects are built inside server() to match moranpage/app.R
 
 #############################################################################
 #                               Monte Carlo - Moran Index

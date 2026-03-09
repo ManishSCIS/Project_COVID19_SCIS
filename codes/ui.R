@@ -46,6 +46,27 @@ sidebar<-dashboardSidebar(
 
 
 body<- dashboardBody(
+  tags$head(tags$style(HTML("
+    img { max-width: 100%; height: auto; }
+    .content-wrapper, .right-side { overflow-x: hidden; }
+    .js-plotly-plot, .plotly, .plotly.html-widget { width: 100% !important; max-width: 100% !important; }
+    .js-plotly-plot .main-svg { width: 100% !important; }
+    .box-body { overflow: hidden; }
+    .small-box h3 {
+      font-size: clamp(14px, 3vw, 38px);
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+      line-height: 1.2;
+    }
+    .small-box p {
+      font-size: clamp(10px, 1.4vw, 15px);
+      word-break: break-word;
+      white-space: normal;
+    }
+    .small-box { overflow: hidden; min-height: 80px; }
+    .small-box .inner { overflow: hidden; }
+  "))),
   tabItems(
     ###############Tab1#################
     tabItem(tabName = "dashboard",
@@ -149,19 +170,45 @@ body<- dashboardBody(
                        
               ),
               
-              tabPanel(title="GRNN Forecast",icon = icon("chart-line"),
-                       # h1("GRNN Plots"),
-                       fluidRow(column(width=8,
-                                       sliderInput("obs", "Days to Forecast:",
-                                                   min = 1, max = 100, value = 10
-                                       ))),
-                       
-                       fluidRow(column(width = 6,               
-                                       plotlyOutput("Plotfst1")),
-                                
-                                column(width=6,
-                                       plotlyOutput("Plotfst2"))
+              tabPanel(title="Forecast Models", icon = icon("chart-line"),
+                       fluidRow(
+                         column(width=4,
+                                selectInput("model_select", "Select Forecast Model",
+                                            choices = c("GRNN", "ARIMA", "ETS"),
+                                            selected = "ETS")),
+                         column(width=4,
+                                sliderInput("obs", "Days to Forecast:",
+                                            min = 1, max = 100, value = 10))
+                       ),
+                       fluidRow(
+                         column(width=6,
+                                box(title="Forecast with History",
+                                    status="primary", solidHeader=TRUE,
+                                    collapsible=TRUE, width=12,
+                                    plotlyOutput("PlotModel1"))),
+                         column(width=6,
+                                box(title="Prediction Only",
+                                    status="primary", solidHeader=TRUE,
+                                    collapsible=TRUE, width=12,
+                                    plotlyOutput("PlotModel2")))
                        )
+              ),
+
+              tabPanel(title="Model Comparison", icon = icon("scale-balanced"),
+                       fluidRow(column(width=12,
+                                       box(title="Forecast Accuracy — 30-day Holdout Test (Lower is Better)",
+                                           status="primary",
+                                           solidHeader=TRUE,
+                                           collapsible=TRUE,
+                                           width=12,
+                                           dataTableOutput("accuracy_table")))),
+                       fluidRow(column(width=12,
+                                       box(title="GRNN vs ARIMA vs ETS — Point Forecast Comparison",
+                                           status="primary",
+                                           solidHeader=TRUE,
+                                           collapsible=TRUE,
+                                           width=12,
+                                           plotlyOutput("PlotCompare"))))
               ),
               
               tabPanel(title="Data Table", icon = icon("table"),
@@ -177,39 +224,36 @@ body<- dashboardBody(
                    ###### Spatial Maps for Cases
                    tabPanel(title="Spatial-Plots", icon = icon("earth-asia"),
                             
-                            ##########################################################                
                             fluidRow(
-                              box(title = "Confirmed and Recovered Cases for COVID-19",
-                                  status = "primary",
-                                  solidHeader = FALSE,
-                                  collapsible = TRUE,
-                                  
-                              column( width=6, img(src="conf.png",width=500, height= 400)),
-                              column( width=6, img(src="rec.png",width=500, height= 400)), width = 12
-                              )),
-                            
-                            fluidRow(box(title = "Deceased and Active Cases for COVID-19 ",
-                                         status = "primary",
-                                         solidHeader = FALSE,
-                                         collapsible = TRUE,
-                                         collapsed = TRUE,
-                                         column( width=6, img(src="dec.png",width=500, height= 400)),
-                                         column( width=6, img(src="act.png",width=500, height= 400)), width = 12
-                            )
-                                 
-                               ),
-                            fluidRow(
-                              box(title = "Link to Interactive-Maps",
+                              box(title = "COVID-19 Confirmed Cases",
                                   status = "primary",
                                   solidHeader = TRUE,
+                                  collapsible = TRUE,
+                                  width = 6,
+                                  leafletOutput("moran.conf.map", height = 400)),
+                              box(title = "COVID-19 Recovered Cases",
+                                  status = "primary",
+                                  solidHeader = TRUE,
+                                  collapsible = TRUE,
+                                  width = 6,
+                                  leafletOutput("moran.rec.map", height = 400))
+                            ),
+                            fluidRow(
+                              box(title = "COVID-19 Deceased Cases",
+                                  status = "primary",
+                                  solidHeader = TRUE,
+                                  collapsible = TRUE,
                                   collapsed = TRUE,
-                                  shiny::actionButton(inputId='ab1', label="Interactive-Map Page", 
-                                                      icon = icon("earth-asia"), 
-                                                      onclick ="window.open('https://v3srmu-manishscis.shinyapps.io/MoranIndex/','_blank')")
-                        
-                              )
+                                  width = 6,
+                                  leafletOutput("moran.dec.map", height = 400)),
+                              box(title = "COVID-19 Active Cases",
+                                  status = "primary",
+                                  solidHeader = TRUE,
+                                  collapsible = TRUE,
+                                  collapsed = TRUE,
+                                  width = 6,
+                                  leafletOutput("moran.act.map", height = 400))
                             )
-                            ##########################################################         
                             
                    ),
                    ###### OLS Plots for Moran's I : Analytical Way
@@ -302,7 +346,8 @@ body<- dashboardBody(
 
 
 dashboardPage( skin = "green",
-               header,sidebar,body
+               header, sidebar, body,
+               title = "CoSymple | COVID-19 Dashboard India"
 )
 
 
